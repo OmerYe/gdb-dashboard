@@ -568,9 +568,10 @@ class Dashboard(gdb.Command):
 # Utility methods --------------------------------------------------------------
 
     @staticmethod
-    def start():
+    def start(output=None):
         # initialize the dashboard
         dashboard = Dashboard()
+        dashboard.output = output
         Dashboard.set_custom_prompt(dashboard)
         # parse Python inits, load modules then parse GDB inits
         dashboard.inhibited = True
@@ -2272,8 +2273,15 @@ set python print-stack full
 
 # Start ------------------------------------------------------------------------
 
-python Dashboard.start()
-
+python
+out = os.popen('tmux split-window -b -P -F "#{pane_id}:#{pane_tty}" -d "cat -"').read().strip().split(":")
+tid = out[0]
+tty = out[1]
+def on_exit(_):
+    os.system(f'tmux kill-pane -t {tid}')
+gdb.events.exited.connect(on_exit)
+Dashboard.start(tty)
+end
 # File variables ---------------------------------------------------------------
 
 # vim: filetype=python
