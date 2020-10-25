@@ -2260,6 +2260,35 @@ class Breakpoints(Dashboard.Module):
         }
 
 # XXX traceback line numbers in this Python block must be increased by 1
+
+class MBreak(gdb.Command):
+    """ Shared library + offset breakpoint """
+
+    def __init__(self):
+        super(MBreak, self).__init__('mbreak', gdb.COMMAND_USER)
+
+    def invoke(self, args, from_tty):
+        argv = gdb.string_to_argv(args)
+        if len(argv) != 2:
+            raise gdb.GdbError("Invalid. Usage: mbreak SHAREDLIBRARY OFFSET")
+
+        base_addr = -1
+        for line in gdb.execute("info sharedlibrary " + argv[0], to_string=True).splitlines():
+            if line.startswith("0x"):
+                base_addr = int(line.split()[0], 16)
+                break
+
+        if base_addr == -1:
+            raise gdb.GdbError("Shared library base addres not found")
+
+        try:
+            # offset = int(argv[1], 16) if argv[1].lower().startswith("0x") else int(argv[1])
+            offset = int(eval(' '.join(argv[1:])))
+        except:
+            raise gdb.GdbError("OFFSET argument must be (an evaluation of) a number")
+
+        gdb.execute("break *" + str(base_addr + offset))
+
 end
 
 # Better GDB defaults ----------------------------------------------------------
@@ -2281,6 +2310,7 @@ def on_exit(_):
     os.system(f'tmux kill-pane -t {tid}')
 gdb.events.exited.connect(on_exit)
 Dashboard.start(tty)
+MBreak()
 end
 # File variables ---------------------------------------------------------------
 
